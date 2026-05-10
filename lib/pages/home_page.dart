@@ -11,7 +11,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  List<Transaksi> listTransaksi = []; // Data dummy pengganti ViewModel
+  List<Transaksi> listTransaksi = [];
 
   @override
   void initState() {
@@ -64,7 +64,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       leading: Icon(item.tipe == "Pemasukan" ? Icons.add_circle : Icons.remove_circle, 
                                    color: item.tipe == "Pemasukan" ? Colors.green : Colors.red),
                       title: Text(item.judul),
-                      subtitle: Text(item.tanggal),
+                      subtitle: Text(item.tanggal.toString()),
                       trailing: Text(currencyFormat.format(item.nominal)),
                     );
                   },
