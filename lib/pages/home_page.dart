@@ -4,29 +4,29 @@ import '../models/transaksi.dart';
 import '../models/user.dart';
 import '../services/transaksi_service.dart';
 import '../services/user_service.dart';
+import '../theme/app_theme.dart';
 import 'profile_page.dart';
 
 class HomePage extends StatefulWidget {
   final String userId;
-
   const HomePage({super.key, required this.userId});
 
   @override
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage>
-    with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<Transaksi> listTransaksi = [];
   bool _isLoading = true;
   User? _currentUser;
 
-  // Form Controllers
   final _formKey = GlobalKey<FormState>();
   final _judulController = TextEditingController();
   final _nominalController = TextEditingController();
-  String _tipeTerpilih = "Pemasukan";
+  String _tipeTerpilih = 'Pemasukan';
+
+  final fmt = NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0);
 
   @override
   void initState() {
@@ -35,92 +35,74 @@ class _HomePageState extends State<HomePage>
     _muatData();
   }
 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _judulController.dispose();
+    _nominalController.dispose();
+    super.dispose();
+  }
+
   String get _userId => widget.userId;
 
-  // Fungsi untuk mengambil data dari database
   Future<void> _muatData() async {
     setState(() => _isLoading = true);
     try {
-      print("🔍 Sedang mengambil data untuk User ID: $_userId");
       final user = await UserService.getUserById(_userId);
       final data = await TransaksiService.getTransaksiByUser(_userId);
-
       setState(() {
         _currentUser = user;
         listTransaksi = data;
         _isLoading = false;
       });
-      print("✅ Berhasil memuat ${listTransaksi.length} transaksi.");
     } catch (e) {
-      print("❌ Error saat muat data: $e");
       setState(() => _isLoading = false);
     }
   }
 
   double get totalSaldo {
-    double total = 0;
-    for (var t in listTransaksi) {
-      total += (t.tipe == "Pemasukan") ? t.nominal : -t.nominal;
-    }
-    return total;
+    return listTransaksi.fold(0, (sum, t) => sum + (t.tipe == 'Pemasukan' ? t.nominal : -t.nominal));
   }
 
-  // QuickChart API
+  double get totalPemasukan =>
+      listTransaksi.where((t) => t.tipe == 'Pemasukan').fold(0, (s, t) => s + t.nominal);
+
+  double get totalPengeluaran =>
+      listTransaksi.where((t) => t.tipe == 'Pengeluaran').fold(0, (s, t) => s + t.nominal);
+
   String getChartUrl() {
-    double pemasukan = 0;
-    double pengeluaran = 0;
-    for (var t in listTransaksi) {
-      if (t.tipe == "Pemasukan")
-        pemasukan += t.nominal;
-      else
-        pengeluaran += t.nominal;
-    }
     final config =
-        '{"type":"pie","data":{"labels":["Masuk","Keluar"],"datasets":[{"data":[$pemasukan,$pengeluaran],"backgroundColor":["#4CAF50","#F44336"]}]}}';
-    return "https://quickchart.io/chart?c=${Uri.encodeComponent(config)}";
+        '{"type":"doughnut","data":{"labels":["Pemasukan","Pengeluaran"],"datasets":[{"data":[${totalPemasukan},${totalPengeluaran}],"backgroundColor":["#00C896","#FF5C6A"],"borderWidth":0}]},"options":{"plugins":{"legend":{"display":false}},"cutout":"70%"}}';
+    return 'https://quickchart.io/chart?c=${Uri.encodeComponent(config)}&backgroundColor=transparent&width=200&height=200';
   }
 
-  // QR Code API dengan data lengkap
   String getQrUrl(Transaksi t) {
-    final fmt = NumberFormat.currency(
-      locale: 'id',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    );
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-
     String data =
-        """TRANSAKSI KEUANGAN
----
-Nama: ${_currentUser?.nama ?? 'User'}
-Judul: ${t.judul}
-Nominal: ${fmt.format(t.nominal)}
-Tipe: ${t.tipe}
-Kategori: ${t.kategori}
-Tanggal: ${dateFormat.format(t.tanggal)}
-ID: ${t.id?.toHexString() ?? 'N/A'}""";
-
-    return "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${Uri.encodeComponent(data)}";
+        'TRANSAKSI KEUANGAN\nNama: ${_currentUser?.nama ?? 'User'}\nJudul: ${t.judul}\nNominal: ${fmt.format(t.nominal)}\nTipe: ${t.tipe}\nKategori: ${t.kategori}\nTanggal: ${dateFormat.format(t.tanggal)}\nID: ${t.id?.toHexString() ?? 'N/A'}';
+    return 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${Uri.encodeComponent(data)}&bgcolor=1A1D27&color=F0F2F8';
   }
 
   void _konfirmasiHapus(String id) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Hapus Transaksi"),
-        content: const Text("Yakin ingin menghapus data ini?"),
+        title: const Text('Hapus Transaksi'),
+        content: const Text('Data ini akan dihapus permanen. Yakin ingin melanjutkan?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Batal"),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.textSecondary),
+            child: const Text('Batal'),
           ),
           TextButton(
             onPressed: () async {
               await TransaksiService.deleteTransaksi(id);
-              await _muatData(); // Refresh data
+              await _muatData();
               Navigator.pop(ctx);
             },
-            child: const Text("Hapus", style: TextStyle(color: Colors.red)),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
+            child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -129,16 +111,14 @@ ID: ${t.id?.toHexString() ?? 'N/A'}""";
 
   void _editTransaksi(Transaksi transaksi) {
     final editJudulController = TextEditingController(text: transaksi.judul);
-    final editNominalController = TextEditingController(
-      text: transaksi.nominal.toString(),
-    );
-    String editTipeTerpilih = transaksi.tipe;
+    final editNominalController = TextEditingController(text: transaksi.nominal.toString());
+    String editTipe = transaksi.tipe;
     final editFormKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Edit Transaksi"),
+        title: const Text('Edit Transaksi'),
         content: Form(
           key: editFormKey,
           child: SingleChildScrollView(
@@ -147,39 +127,30 @@ ID: ${t.id?.toHexString() ?? 'N/A'}""";
               children: [
                 TextFormField(
                   controller: editJudulController,
-                  decoration: const InputDecoration(
-                    labelText: "Judul Transaksi",
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) => v!.isEmpty ? "Isi judul" : null,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(labelText: 'Judul Transaksi'),
+                  validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: editNominalController,
-                  decoration: const InputDecoration(
-                    labelText: "Nominal",
-                    border: OutlineInputBorder(),
-                  ),
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(labelText: 'Nominal'),
                   keyboardType: TextInputType.number,
-                  validator: (v) => v!.isEmpty ? "Isi nominal" : null,
+                  validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
                 ),
                 const SizedBox(height: 12),
                 StatefulBuilder(
-                  builder: (ctx, setStateEdit) =>
-                      DropdownButtonFormField<String>(
-                        value: editTipeTerpilih,
-                        decoration: const InputDecoration(
-                          labelText: "Jenis Transaksi",
-                          border: OutlineInputBorder(),
-                        ),
-                        items: ["Pemasukan", "Pengeluaran"]
-                            .map(
-                              (e) => DropdownMenuItem(value: e, child: Text(e)),
-                            )
-                            .toList(),
-                        onChanged: (v) =>
-                            setStateEdit(() => editTipeTerpilih = v!),
-                      ),
+                  builder: (ctx, setStateEdit) => DropdownButtonFormField<String>(
+                    value: editTipe,
+                    dropdownColor: AppTheme.surfaceElevated,
+                    style: const TextStyle(color: AppTheme.textPrimary),
+                    decoration: const InputDecoration(labelText: 'Jenis Transaksi'),
+                    items: ['Pemasukan', 'Pengeluaran']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (v) => setStateEdit(() => editTipe = v!),
+                  ),
                 ),
               ],
             ),
@@ -188,31 +159,30 @@ ID: ${t.id?.toHexString() ?? 'N/A'}""";
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Batal"),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.textSecondary),
+            child: const Text('Batal'),
           ),
           TextButton(
             onPressed: () async {
               if (editFormKey.currentState!.validate()) {
                 final res = await TransaksiService.updateTransaksi(
                   id: transaksi.id!.toHexString(),
-                  tipe: editTipeTerpilih,
+                  tipe: editTipe,
                   nominal: double.parse(editNominalController.text),
                   judul: editJudulController.text,
                   kategori: transaksi.kategori,
                 );
-
                 if (res['success']) {
                   await _muatData();
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Transaksi berhasil diperbarui!"),
-                    ),
+                    const SnackBar(content: Text('Transaksi berhasil diperbarui!')),
                   );
                 }
               }
             },
-            child: const Text("Simpan"),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.accent),
+            child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -221,208 +191,562 @@ ID: ${t.id?.toHexString() ?? 'N/A'}""";
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat.currency(
-      locale: 'id',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    );
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Pencatatan Keuangan"),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: "Beranda"),
-            Tab(text: "Input"),
-            Tab(text: "Profil"),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _currentUser != null ? 'Halo, ${_currentUser!.nama.split(' ').first} 👋' : 'Keuanganku',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
           ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(icon: Icon(Icons.home_outlined, size: 20), text: 'Beranda'),
+                Tab(icon: Icon(Icons.add_circle_outline_rounded, size: 20), text: 'Input'),
+                Tab(icon: Icon(Icons.person_outline_rounded, size: 20), text: 'Profil'),
+              ],
+            ),
+          ),
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          // --- TAB BERANDA ---
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : RefreshIndicator(
-                  onRefresh: _muatData,
-                  child: Column(
-                    children: [
-                      if (listTransaksi.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: SizedBox(
-                            height: 150,
-                            child: Image.network(getChartUrl()),
-                          ),
-                        ),
-                      Container(
-                        padding: const EdgeInsets.all(15),
-                        width: double.infinity,
-                        color: totalSaldo < 0
-                            ? Colors.redAccent
-                            : Colors.blueAccent,
-                        child: Center(
-                          child: Text(
-                            "Total Saldo: ${fmt.format(totalSaldo)}",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: listTransaksi.isEmpty
-                            ? const Center(
-                                child: Text("Belum ada riwayat transaksi."),
-                              )
-                            : ListView.builder(
-                                itemCount: listTransaksi.length,
-                                itemBuilder: (ctx, i) {
-                                  final t = listTransaksi[i];
-                                  return ListTile(
-                                    leading: Icon(
-                                      t.tipe == "Pemasukan"
-                                          ? Icons.add_circle
-                                          : Icons.remove_circle,
-                                      color: t.tipe == "Pemasukan"
-                                          ? Colors.green
-                                          : Colors.red,
-                                    ),
-                                    title: Text(t.judul),
-                                    subtitle: Text(
-                                      DateFormat(
-                                        'dd/MM/yyyy',
-                                      ).format(t.tanggal),
-                                    ),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(fmt.format(t.nominal)),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.qr_code,
-                                            size: 20,
-                                          ),
-                                          onPressed: () {
-                                            showDialog(
-                                              context: context,
-                                              builder: (_) => AlertDialog(
-                                                content: Image.network(
-                                                  getQrUrl(t),
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            color: Colors.blue,
-                                          ),
-                                          onPressed: () => _editTransaksi(t),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete_outline,
-                                            color: Colors.red,
-                                          ),
-                                          onPressed: () => _konfirmasiHapus(
-                                            t.id!.toHexString(),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                      ),
-                    ],
+          _buildBerandaTab(),
+          _buildInputTab(),
+          ProfilePage(userId: _userId),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBerandaTab() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppTheme.accent, strokeWidth: 2.5),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _muatData,
+      color: AppTheme.accent,
+      backgroundColor: AppTheme.surfaceElevated,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+        children: [
+          // Saldo Card
+          _buildSaldoCard(),
+          const SizedBox(height: 20),
+
+          // Summary Cards
+          Row(
+            children: [
+              Expanded(child: _buildSummaryCard('Pemasukan', totalPemasukan, AppTheme.accent,
+                  Icons.arrow_downward_rounded, const Color(0xFF0D2620))),
+              const SizedBox(width: 12),
+              Expanded(child: _buildSummaryCard('Pengeluaran', totalPengeluaran, AppTheme.danger,
+                  Icons.arrow_upward_rounded, const Color(0xFF2D1218))),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Chart (if data exists)
+          if (listTransaksi.isNotEmpty) ...[
+            _buildChartSection(),
+            const SizedBox(height: 24),
+          ],
+
+          // Transaction List Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Riwayat Transaksi',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                '${listTransaksi.length} transaksi',
+                style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          listTransaksi.isEmpty
+              ? _buildEmptyState()
+              : Column(
+                  children: listTransaksi
+                      .map((t) => _buildTransaksiCard(t))
+                      .toList(),
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSaldoCard() {
+    final isPositive = totalSaldo >= 0;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isPositive
+              ? [const Color(0xFF0D2620), const Color(0xFF0A1E18)]
+              : [const Color(0xFF2D1218), const Color(0xFF1E0B0F)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isPositive
+              ? AppTheme.accent.withOpacity(0.3)
+              : AppTheme.danger.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: (isPositive ? AppTheme.accent : AppTheme.danger).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  isPositive ? '● Saldo Positif' : '● Saldo Negatif',
+                  style: TextStyle(
+                    color: isPositive ? AppTheme.accent : AppTheme.danger,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-
-          // --- TAB INPUT ---
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _judulController,
-                    decoration: const InputDecoration(
-                      labelText: "Judul Transaksi",
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) => v!.isEmpty ? "Isi judul" : null,
-                  ),
-                  const SizedBox(height: 15),
-                  TextFormField(
-                    controller: _nominalController,
-                    decoration: const InputDecoration(
-                      labelText: "Nominal",
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (v) => v!.isEmpty ? "Isi nominal" : null,
-                  ),
-                  const SizedBox(height: 15),
-                  // Dropdown Tipe Transaksi
-                  DropdownButtonFormField<String>(
-                    value: _tipeTerpilih,
-                    decoration: const InputDecoration(
-                      labelText: "Jenis Transaksi",
-                      border: OutlineInputBorder(),
-                    ),
-                    items: ["Pemasukan", "Pengeluaran"]
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _tipeTerpilih = v!),
-                  ),
-                  const SizedBox(height: 25),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          final res = await TransaksiService.tambahTransaksi(
-                            userId: _userId,
-                            tipe: _tipeTerpilih,
-                            nominal: double.parse(_nominalController.text),
-                            judul: _judulController.text,
-                            kategori: "Umum",
-                          );
-
-                          if (res['success']) {
-                            _judulController.clear();
-                            _nominalController.clear();
-                            await _muatData(); // Update riwayat
-                            _tabController.animateTo(
-                              0,
-                            ); // Pindah ke tab beranda
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Data berhasil disimpan!"),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      child: const Text("Simpan Transaksi"),
-                    ),
-                  ),
-                ],
               ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Total Saldo',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            fmt.format(totalSaldo),
+            style: TextStyle(
+              color: isPositive ? AppTheme.accent : AppTheme.danger,
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(String label, double amount, Color color, IconData icon, Color bg) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 6),
+              Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            fmt.format(amount),
+            style: TextStyle(
+              color: color,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.cardBorder, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Komposisi Keuangan',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              SizedBox(
+                width: 110,
+                height: 110,
+                child: Image.network(getChartUrl(), fit: BoxFit.contain),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildLegendItem('Pemasukan', AppTheme.accent),
+                    const SizedBox(height: 12),
+                    _buildLegendItem('Pengeluaran', AppTheme.danger),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(String label, Color color) {
+    return Row(
+      children: [
+        Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 8),
+        Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+      ],
+    );
+  }
+
+  Widget _buildTransaksiCard(Transaksi t) {
+    final isIn = t.tipe == 'Pemasukan';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.cardBorder, width: 1),
+      ),
+      child: Row(
+        children: [
+          // Icon
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: (isIn ? AppTheme.accent : AppTheme.danger).withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              isIn ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+              color: isIn ? AppTheme.accent : AppTheme.danger,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 14),
+
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.judul,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Text(
+                      t.kategori,
+                      style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                    ),
+                    const Text(' · ', style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+                    Text(
+                      DateFormat('dd MMM yyyy').format(t.tanggal),
+                      style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
 
-          // --- TAB PROFILE ---
-          ProfilePage(userId: _userId),
+          // Amount
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${isIn ? '+' : '-'}${fmt.format(t.nominal)}',
+                style: TextStyle(
+                  color: isIn ? AppTheme.accent : AppTheme.danger,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _actionIcon(Icons.qr_code_rounded, AppTheme.textMuted, () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        backgroundColor: AppTheme.surface,
+                        title: const Text('QR Transaksi'),
+                        content: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(getQrUrl(t)),
+                        ),
+                      ),
+                    );
+                  }),
+                  _actionIcon(Icons.edit_outlined, AppTheme.textMuted, () => _editTransaksi(t)),
+                  _actionIcon(Icons.delete_outline_rounded, AppTheme.danger.withOpacity(0.7),
+                      () => _konfirmasiHapus(t.id!.toHexString())),
+                ],
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _actionIcon(IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 8),
+        child: Icon(icon, color: color, size: 18),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 50),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceElevated,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(Icons.receipt_long_outlined,
+                color: AppTheme.textMuted, size: 28),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Belum Ada Transaksi',
+            style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Tap tab Input untuk mulai mencatat',
+            style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 30),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Tambah Transaksi',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Catat pemasukan atau pengeluaran Anda.',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+          ),
+          const SizedBox(height: 32),
+
+          // Tipe Selector
+          const Text(
+            'JENIS TRANSAKSI',
+            style: TextStyle(color: AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildTipeButton('Pemasukan', Icons.arrow_downward_rounded, AppTheme.accent)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildTipeButton('Pengeluaran', Icons.arrow_upward_rounded, AppTheme.danger)),
+            ],
+          ),
+          const SizedBox(height: 28),
+
+          Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'JUDUL TRANSAKSI',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _judulController,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(
+                    hintText: 'Contoh: Gaji Bulan Ini',
+                    prefixIcon: Icon(Icons.title_rounded, color: AppTheme.textMuted, size: 20),
+                  ),
+                  validator: (v) => v!.isEmpty ? 'Judul wajib diisi' : null,
+                ),
+                const SizedBox(height: 20),
+
+                const Text(
+                  'NOMINAL',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _nominalController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(
+                    hintText: '0',
+                    prefixIcon: Icon(Icons.payments_outlined, color: AppTheme.textMuted, size: 20),
+                    prefixText: 'Rp  ',
+                    prefixStyle: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                  ),
+                  validator: (v) => v!.isEmpty ? 'Nominal wajib diisi' : null,
+                ),
+                const SizedBox(height: 36),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      if (_formKey.currentState!.validate()) {
+                        final res = await TransaksiService.tambahTransaksi(
+                          userId: _userId,
+                          tipe: _tipeTerpilih,
+                          nominal: double.parse(_nominalController.text),
+                          judul: _judulController.text,
+                          kategori: 'Umum',
+                        );
+                        if (res['success']) {
+                          _judulController.clear();
+                          _nominalController.clear();
+                          await _muatData();
+                          _tabController.animateTo(0);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Transaksi berhasil disimpan! ✓')),
+                          );
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _tipeTerpilih == 'Pemasukan' ? AppTheme.accent : AppTheme.danger,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _tipeTerpilih == 'Pemasukan'
+                              ? Icons.arrow_downward_rounded
+                              : Icons.arrow_upward_rounded,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Simpan Transaksi'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTipeButton(String tipe, IconData icon, Color color) {
+    final isSelected = _tipeTerpilih == tipe;
+    return GestureDetector(
+      onTap: () => setState(() => _tipeTerpilih = tipe),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.15) : AppTheme.surfaceElevated,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? color : AppTheme.cardBorder,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: isSelected ? color : AppTheme.textMuted, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              tipe,
+              style: TextStyle(
+                color: isSelected ? color : AppTheme.textSecondary,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

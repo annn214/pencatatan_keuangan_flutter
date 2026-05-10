@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/user.dart';
 import '../services/user_service.dart';
+import '../theme/app_theme.dart';
 import 'login_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final String userId;
-
   const ProfilePage({super.key, required this.userId});
 
   @override
@@ -31,7 +32,6 @@ class _ProfilePageState extends State<ProfilePage> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading user data: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -40,11 +40,12 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Apakah Anda yakin ingin logout?'),
+        title: const Text('Konfirmasi Logout'),
+        content: const Text('Anda akan keluar dari akun ini. Yakin ingin logout?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.textSecondary),
             child: const Text('Batal'),
           ),
           TextButton(
@@ -55,7 +56,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 MaterialPageRoute(builder: (context) => const LoginPage()),
               );
             },
-            child: const Text('Logout', style: TextStyle(color: Colors.red)),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
+            child: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -64,106 +66,220 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _user == null
-          ? const Center(child: Text('Gagal memuat data profil'))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 20),
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.blueAccent,
-                    child: Text(
-                      _user!.nama[0].toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 48,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    _user!.nama,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _user!.email,
-                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 30),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Informasi Akun',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildInfoRow('Email', _user!.email),
-                          const SizedBox(height: 12),
-                          _buildInfoRow(
-                            'Tanggal Daftar',
-                            '${_user!.tanggalDaftar.day}/${_user!.tanggalDaftar.month}/${_user!.tanggalDaftar.year}',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildInfoRow('ID User', widget.userId),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _logout,
-                      icon: const Icon(Icons.logout),
-                      label: const Text('Logout'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ],
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppTheme.accent, strokeWidth: 2.5),
+      );
+    }
+
+    if (_user == null) {
+      return const Center(
+        child: Text('Gagal memuat profil', style: TextStyle(color: AppTheme.textSecondary)),
+      );
+    }
+
+    final initials = _user!.nama
+        .trim()
+        .split(' ')
+        .take(2)
+        .map((w) => w.isNotEmpty ? w[0].toUpperCase() : '')
+        .join();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 40),
+      child: Column(
+        children: [
+          // Avatar
+          Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppTheme.accent, Color(0xFF00A37A)],
+              ),
+              borderRadius: BorderRadius.circular(26),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.accent.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                initials,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
+          ),
+          const SizedBox(height: 18),
+
+          Text(
+            _user!.nama,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _user!.email,
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+          ),
+          const SizedBox(height: 8),
+
+          // Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppTheme.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppTheme.accent.withOpacity(0.25), width: 1),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.verified_rounded, color: AppTheme.accent, size: 14),
+                SizedBox(width: 5),
+                Text(
+                  'Akun Terverifikasi',
+                  style: TextStyle(color: AppTheme.accent, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // Info Card
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppTheme.cardBorder, width: 1),
+            ),
+            child: Column(
+              children: [
+                _buildInfoTile(
+                  icon: Icons.mail_outline_rounded,
+                  label: 'Email',
+                  value: _user!.email,
+                  showDivider: true,
+                ),
+                _buildInfoTile(
+                  icon: Icons.calendar_today_outlined,
+                  label: 'Tanggal Bergabung',
+                  value: DateFormat('dd MMMM yyyy', 'id').format(_user!.tanggalDaftar),
+                  showDivider: true,
+                ),
+                _buildInfoTile(
+                  icon: Icons.fingerprint_rounded,
+                  label: 'ID Pengguna',
+                  value: widget.userId,
+                  showDivider: false,
+                  isMonospace: true,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // Logout Button
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: OutlinedButton.icon(
+              onPressed: _logout,
+              icon: const Icon(Icons.logout_rounded, size: 18),
+              label: const Text('Keluar dari Akun'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.danger,
+                side: const BorderSide(color: AppTheme.danger, width: 1),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          const Text(
+            'Keuanganku v1.0.0\nDibuat oleh Kelompok 2',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppTheme.textMuted, fontSize: 12, height: 1.6),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildInfoTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    required bool showDivider,
+    bool isMonospace = false,
+  }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-            fontWeight: FontWeight.w500,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceElevated,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: AppTheme.textSecondary, size: 18),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: AppTheme.textMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: isMonospace ? 11 : 14,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: isMonospace ? 'monospace' : null,
+                        letterSpacing: isMonospace ? 0.3 : 0,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-        ),
+        if (showDivider)
+          Container(
+            margin: const EdgeInsets.only(left: 70),
+            height: 1,
+            color: AppTheme.divider,
+          ),
       ],
     );
   }
