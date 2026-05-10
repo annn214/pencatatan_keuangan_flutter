@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:uas_pencatatan_keuangan/models/transaksi.dart';
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
   _HomePageState createState() => _HomePageState();
 }
