@@ -1,17 +1,17 @@
 import 'package:mongo_dart/mongo_dart.dart';
 
 class Transaksi {
-  ObjectId? id;
-  ObjectId? userId;
-  String tipe; // 'Pemasukan' atau 'Pengeluaran'
-  double nominal;
-  String judul;
-  String kategori;
-  DateTime tanggal;
+  final ObjectId? id;
+  final ObjectId userId;
+  final String tipe;
+  final double nominal;
+  final String judul;
+  final String kategori;
+  final DateTime tanggal;
 
   Transaksi({
     this.id,
-    this.userId,
+    required this.userId,
     required this.tipe,
     required this.nominal,
     required this.judul,
@@ -19,27 +19,27 @@ class Transaksi {
     DateTime? tanggal,
   }) : tanggal = tanggal ?? DateTime.now();
 
+  factory Transaksi.fromMap(Map<String, dynamic> map) {
+    return Transaksi(
+      id: map['_id'] as ObjectId?,
+      userId: map['user_id'] as ObjectId,
+      tipe: map['tipe'] as String,
+      nominal: (map['nominal'] as num).toDouble(),
+      judul: map['judul'] as String,
+      kategori: map['kategori'] as String,
+      tanggal: map['tanggal'] as DateTime? ?? DateTime.now(),
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
-      '_id': id ?? ObjectId(),
+      if (id != null) '_id': id,
       'user_id': userId,
       'tipe': tipe,
       'nominal': nominal,
       'judul': judul,
       'kategori': kategori,
-      'tanggal': tanggal.toIso8601String(),
+      'tanggal': tanggal,
     };
-  }
-
-  factory Transaksi.fromMap(Map<String, dynamic> map) {
-    return Transaksi(
-      id: map['_id'],
-      userId: map['user_id'],
-      tipe: map['tipe'],
-      nominal: map['nominal'].toDouble(),
-      judul: map['judul'],
-      kategori: map['kategori'],
-      tanggal: DateTime.parse(map['tanggal']),
-    );
   }
 }

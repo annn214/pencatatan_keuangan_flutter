@@ -28,12 +28,16 @@ class User {
 
   // Ambil dari MongoDB
   factory User.fromMap(Map<String, dynamic> map) {
+    final rawTanggalDaftar = map['tanggal_daftar'];
+
     return User(
       id: map['_id'],
       nama: map['nama'],
       email: map['email'],
       password: map['password'],
-      tanggalDaftar: DateTime.parse(map['tanggal_daftar']),
+      tanggalDaftar: rawTanggalDaftar is DateTime
+          ? rawTanggalDaftar
+          : DateTime.parse(rawTanggalDaftar as String),
     );
   }
 }

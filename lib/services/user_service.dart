@@ -3,7 +3,6 @@ import 'database_service.dart';
 import '../models/user.dart';
 
 class UserService {
-
   // REGISTER - Daftar user baru
   static Future<Map<String, dynamic>> register({
     required String nama,
@@ -11,18 +10,17 @@ class UserService {
     required String password,
   }) async {
     try {
+      final normalizedEmail = email.trim().toLowerCase();
+
       // Cek email sudah ada atau belum
-      final existing = await DatabaseService.users
-          .findOne({'email': email});
+      final existing = await DatabaseService.users.findOne({
+        'email': normalizedEmail,
+      });
       if (existing != null) {
         return {'success': false, 'message': 'Email sudah terdaftar!'};
       }
 
-      final user = User(
-        nama: nama,
-        email: email,
-        password: password,
-      );
+      final user = User(nama: nama, email: normalizedEmail, password: password);
 
       await DatabaseService.users.insertOne(user.toMap());
       return {'success': true, 'message': 'Registrasi berhasil!'};
@@ -37,8 +35,12 @@ class UserService {
     required String password,
   }) async {
     try {
-      final data = await DatabaseService.users
-          .findOne({'email': email, 'password': password});
+      final normalizedEmail = email.trim().toLowerCase();
+
+      final data = await DatabaseService.users.findOne({
+        'email': normalizedEmail,
+        'password': password,
+      });
 
       if (data == null) {
         return {'success': false, 'message': 'Email atau password salah!'};
@@ -57,8 +59,9 @@ class UserService {
   // GET USER - Ambil data user by ID
   static Future<User?> getUserById(String id) async {
     try {
-      final data = await DatabaseService.users
-          .findOne(where.id(ObjectId.fromHexString(id)));
+      final data = await DatabaseService.users.findOne(
+        where.id(ObjectId.fromHexString(id)),
+      );
       if (data == null) return null;
       return User.fromMap(data);
     } catch (e) {
@@ -76,9 +79,7 @@ class UserService {
     try {
       await DatabaseService.users.updateOne(
         where.id(ObjectId.fromHexString(id)),
-        modify
-            .set('nama', nama)
-            .set('email', email),
+        modify.set('nama', nama).set('email', email),
       );
       return {'success': true, 'message': 'Profil berhasil diupdate!'};
     } catch (e) {

@@ -3,7 +3,6 @@ import 'database_service.dart';
 import '../models/transaksi.dart';
 
 class TransaksiService {
-
   // CREATE - Tambah transaksi baru
   static Future<Map<String, dynamic>> tambahTransaksi({
     required String userId,
@@ -31,9 +30,9 @@ class TransaksiService {
   // READ - Ambil semua transaksi user
   static Future<List<Transaksi>> getTransaksiByUser(String userId) async {
     try {
-      final data = await DatabaseService.transaksi
-          .find({'user_id': ObjectId.fromHexString(userId)})
-          .toList();
+      final data = await DatabaseService.transaksi.find({
+        'user_id': ObjectId.fromHexString(userId),
+      }).toList();
       return data.map((e) => Transaksi.fromMap(e)).toList();
     } catch (e) {
       print('Error: $e');
@@ -44,9 +43,10 @@ class TransaksiService {
   // READ - Ambil transaksi pemasukan saja
   static Future<List<Transaksi>> getPemasukan(String userId) async {
     try {
-      final data = await DatabaseService.transaksi
-          .find({'user_id': ObjectId.fromHexString(userId), 'tipe': 'Pemasukan'})
-          .toList();
+      final data = await DatabaseService.transaksi.find({
+        'user_id': ObjectId.fromHexString(userId),
+        'tipe': 'Pemasukan',
+      }).toList();
       return data.map((e) => Transaksi.fromMap(e)).toList();
     } catch (e) {
       print('Error: $e');
@@ -57,13 +57,37 @@ class TransaksiService {
   // READ - Ambil transaksi pengeluaran saja
   static Future<List<Transaksi>> getPengeluaran(String userId) async {
     try {
-      final data = await DatabaseService.transaksi
-          .find({'user_id': ObjectId.fromHexString(userId), 'tipe': 'Pengeluaran'})
-          .toList();
+      final data = await DatabaseService.transaksi.find({
+        'user_id': ObjectId.fromHexString(userId),
+        'tipe': 'Pengeluaran',
+      }).toList();
       return data.map((e) => Transaksi.fromMap(e)).toList();
     } catch (e) {
       print('Error: $e');
       return [];
+    }
+  }
+
+  // UPDATE - Edit transaksi
+  static Future<Map<String, dynamic>> updateTransaksi({
+    required String id,
+    required String tipe,
+    required double nominal,
+    required String judul,
+    required String kategori,
+  }) async {
+    try {
+      await DatabaseService.transaksi.updateOne(
+        where.id(ObjectId.fromHexString(id)),
+        modify
+            .set('tipe', tipe)
+            .set('nominal', nominal)
+            .set('judul', judul)
+            .set('kategori', kategori),
+      );
+      return {'success': true, 'message': 'Transaksi berhasil diperbarui!'};
+    } catch (e) {
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
