@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/transaksi.dart';
 import '../models/user.dart';
@@ -15,7 +16,8 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<Transaksi> listTransaksi = [];
   bool _isLoading = true;
@@ -26,7 +28,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   final _nominalController = TextEditingController();
   String _tipeTerpilih = 'Pemasukan';
 
-  final fmt = NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0);
+  final fmt = NumberFormat.currency(
+    locale: 'id',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  );
+  final _inputNominalFormat = NumberFormat('#,###', 'id');
 
   @override
   void initState() {
@@ -61,18 +68,23 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   double get totalSaldo {
-    return listTransaksi.fold(0, (sum, t) => sum + (t.tipe == 'Pemasukan' ? t.nominal : -t.nominal));
+    return listTransaksi.fold(
+      0,
+      (sum, t) => sum + (t.tipe == 'Pemasukan' ? t.nominal : -t.nominal),
+    );
   }
 
-  double get totalPemasukan =>
-      listTransaksi.where((t) => t.tipe == 'Pemasukan').fold(0, (s, t) => s + t.nominal);
+  double get totalPemasukan => listTransaksi
+      .where((t) => t.tipe == 'Pemasukan')
+      .fold(0, (s, t) => s + t.nominal);
 
-  double get totalPengeluaran =>
-      listTransaksi.where((t) => t.tipe == 'Pengeluaran').fold(0, (s, t) => s + t.nominal);
+  double get totalPengeluaran => listTransaksi
+      .where((t) => t.tipe == 'Pengeluaran')
+      .fold(0, (s, t) => s + t.nominal);
 
   String getChartUrl() {
     final config =
-        '{"type":"doughnut","data":{"labels":["Pemasukan","Pengeluaran"],"datasets":[{"data":[${totalPemasukan},${totalPengeluaran}],"backgroundColor":["#00C896","#FF5C6A"],"borderWidth":0}]},"options":{"plugins":{"legend":{"display":false}},"cutout":"70%"}}';
+        '{"type":"doughnut","data":{"labels":["Pemasukan","Pengeluaran"],"datasets":[{"data":[$totalPemasukan,$totalPengeluaran],"backgroundColor":["#00C896","#FF5C6A"],"borderWidth":0}]},"options":{"plugins":{"legend":{"display":false}},"cutout":"70%"}}';
     return 'https://quickchart.io/chart?c=${Uri.encodeComponent(config)}&backgroundColor=transparent&width=200&height=200';
   }
 
@@ -83,16 +95,32 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     return 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${Uri.encodeComponent(data)}&bgcolor=1A1D27&color=F0F2F8';
   }
 
+  String _formatNominalInput(String value) {
+    final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digitsOnly.isEmpty) return '';
+    return _inputNominalFormat.format(int.parse(digitsOnly));
+  }
+
+  double _parseNominalInput(String value) {
+    final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digitsOnly.isEmpty) return 0;
+    return double.parse(digitsOnly);
+  }
+
   void _konfirmasiHapus(String id) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Hapus Transaksi'),
-        content: const Text('Data ini akan dihapus permanen. Yakin ingin melanjutkan?'),
+        content: const Text(
+          'Data ini akan dihapus permanen. Yakin ingin melanjutkan?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.textSecondary),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondary,
+            ),
             child: const Text('Batal'),
           ),
           TextButton(
@@ -102,7 +130,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               Navigator.pop(ctx);
             },
             style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
-            child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Hapus',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -111,7 +142,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   void _editTransaksi(Transaksi transaksi) {
     final editJudulController = TextEditingController(text: transaksi.judul);
-    final editNominalController = TextEditingController(text: transaksi.nominal.toString());
+    final editNominalController = TextEditingController(
+      text: _formatNominalInput(transaksi.nominal.toStringAsFixed(0)),
+    );
     String editTipe = transaksi.tipe;
     final editFormKey = GlobalKey<FormState>();
 
@@ -128,7 +161,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 TextFormField(
                   controller: editJudulController,
                   style: const TextStyle(color: AppTheme.textPrimary),
-                  decoration: const InputDecoration(labelText: 'Judul Transaksi'),
+                  decoration: const InputDecoration(
+                    labelText: 'Judul Transaksi',
+                  ),
                   validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
                 ),
                 const SizedBox(height: 12),
@@ -137,20 +172,29 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   style: const TextStyle(color: AppTheme.textPrimary),
                   decoration: const InputDecoration(labelText: 'Nominal'),
                   keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    _ThousandsSeparatorInputFormatter(),
+                  ],
                   validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
                 ),
                 const SizedBox(height: 12),
                 StatefulBuilder(
-                  builder: (ctx, setStateEdit) => DropdownButtonFormField<String>(
-                    value: editTipe,
-                    dropdownColor: AppTheme.surfaceElevated,
-                    style: const TextStyle(color: AppTheme.textPrimary),
-                    decoration: const InputDecoration(labelText: 'Jenis Transaksi'),
-                    items: ['Pemasukan', 'Pengeluaran']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) => setStateEdit(() => editTipe = v!),
-                  ),
+                  builder: (ctx, setStateEdit) =>
+                      DropdownButtonFormField<String>(
+                        initialValue: editTipe,
+                        dropdownColor: AppTheme.surfaceElevated,
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        decoration: const InputDecoration(
+                          labelText: 'Jenis Transaksi',
+                        ),
+                        items: ['Pemasukan', 'Pengeluaran']
+                            .map(
+                              (e) => DropdownMenuItem(value: e, child: Text(e)),
+                            )
+                            .toList(),
+                        onChanged: (v) => setStateEdit(() => editTipe = v!),
+                      ),
                 ),
               ],
             ),
@@ -159,7 +203,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.textSecondary),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondary,
+            ),
             child: const Text('Batal'),
           ),
           TextButton(
@@ -168,7 +214,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 final res = await TransaksiService.updateTransaksi(
                   id: transaksi.id!.toHexString(),
                   tipe: editTipe,
-                  nominal: double.parse(editNominalController.text),
+                  nominal: _parseNominalInput(editNominalController.text),
                   judul: editJudulController.text,
                   kategori: transaksi.kategori,
                 );
@@ -176,13 +222,18 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   await _muatData();
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Transaksi berhasil diperbarui!')),
+                    const SnackBar(
+                      content: Text('Transaksi berhasil diperbarui!'),
+                    ),
                   );
                 }
               }
             },
             style: TextButton.styleFrom(foregroundColor: AppTheme.accent),
-            child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Simpan',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -197,7 +248,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _currentUser != null ? 'Halo, ${_currentUser!.nama.split(' ').first} 👋' : 'Keuanganku',
+              _currentUser != null
+                  ? 'Halo, ${_currentUser!.nama.split(' ').first} 👋'
+                  : 'Keuanganku',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
           ],
@@ -206,14 +259,22 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           preferredSize: const Size.fromHeight(48),
           child: Container(
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppTheme.divider, width: 1)),
+              border: Border(
+                bottom: BorderSide(color: AppTheme.divider, width: 1),
+              ),
             ),
             child: TabBar(
               controller: _tabController,
               tabs: const [
                 Tab(icon: Icon(Icons.home_outlined, size: 20), text: 'Beranda'),
-                Tab(icon: Icon(Icons.add_circle_outline_rounded, size: 20), text: 'Input'),
-                Tab(icon: Icon(Icons.person_outline_rounded, size: 20), text: 'Profil'),
+                Tab(
+                  icon: Icon(Icons.add_circle_outline_rounded, size: 20),
+                  text: 'Input',
+                ),
+                Tab(
+                  icon: Icon(Icons.person_outline_rounded, size: 20),
+                  text: 'Profil',
+                ),
               ],
             ),
           ),
@@ -233,7 +294,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Widget _buildBerandaTab() {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: AppTheme.accent, strokeWidth: 2.5),
+        child: CircularProgressIndicator(
+          color: AppTheme.accent,
+          strokeWidth: 2.5,
+        ),
       );
     }
 
@@ -251,11 +315,25 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           // Summary Cards
           Row(
             children: [
-              Expanded(child: _buildSummaryCard('Pemasukan', totalPemasukan, AppTheme.accent,
-                  Icons.arrow_downward_rounded, const Color(0xFF0D2620))),
+              Expanded(
+                child: _buildSummaryCard(
+                  'Pemasukan',
+                  totalPemasukan,
+                  AppTheme.accent,
+                  Icons.arrow_downward_rounded,
+                  const Color(0xFF0D2620),
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _buildSummaryCard('Pengeluaran', totalPengeluaran, AppTheme.danger,
-                  Icons.arrow_upward_rounded, const Color(0xFF2D1218))),
+              Expanded(
+                child: _buildSummaryCard(
+                  'Pengeluaran',
+                  totalPengeluaran,
+                  AppTheme.danger,
+                  Icons.arrow_upward_rounded,
+                  const Color(0xFF2D1218),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -324,9 +402,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
-                  color: (isPositive ? AppTheme.accent : AppTheme.danger).withOpacity(0.15),
+                  color: (isPositive ? AppTheme.accent : AppTheme.danger)
+                      .withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -360,7 +442,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _buildSummaryCard(String label, double amount, Color color, IconData icon, Color bg) {
+  Widget _buildSummaryCard(
+    String label,
+    double amount,
+    Color color,
+    IconData icon,
+    Color bg,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -375,7 +463,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             children: [
               Icon(icon, color: color, size: 16),
               const SizedBox(width: 6),
-              Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -441,9 +535,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Widget _buildLegendItem(String label, Color color) {
     return Row(
       children: [
-        Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 8),
-        Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+        Text(
+          label,
+          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        ),
       ],
     );
   }
@@ -465,7 +566,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: (isIn ? AppTheme.accent : AppTheme.danger).withOpacity(0.12),
+              color: (isIn ? AppTheme.accent : AppTheme.danger).withOpacity(
+                0.12,
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -495,12 +598,21 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   children: [
                     Text(
                       t.kategori,
-                      style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                      style: const TextStyle(
+                        color: AppTheme.textMuted,
+                        fontSize: 12,
+                      ),
                     ),
-                    const Text(' · ', style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+                    const Text(
+                      ' · ',
+                      style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                    ),
                     Text(
                       DateFormat('dd MMM yyyy').format(t.tanggal),
-                      style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                      style: const TextStyle(
+                        color: AppTheme.textMuted,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -537,9 +649,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       ),
                     );
                   }),
-                  _actionIcon(Icons.edit_outlined, AppTheme.textMuted, () => _editTransaksi(t)),
-                  _actionIcon(Icons.delete_outline_rounded, AppTheme.danger.withOpacity(0.7),
-                      () => _konfirmasiHapus(t.id!.toHexString())),
+                  _actionIcon(
+                    Icons.edit_outlined,
+                    AppTheme.textMuted,
+                    () => _editTransaksi(t),
+                  ),
+                  _actionIcon(
+                    Icons.delete_outline_rounded,
+                    AppTheme.danger.withOpacity(0.7),
+                    () => _konfirmasiHapus(t.id!.toHexString()),
+                  ),
                 ],
               ),
             ],
@@ -572,13 +691,20 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               color: AppTheme.surfaceElevated,
               borderRadius: BorderRadius.circular(18),
             ),
-            child: const Icon(Icons.receipt_long_outlined,
-                color: AppTheme.textMuted, size: 28),
+            child: const Icon(
+              Icons.receipt_long_outlined,
+              color: AppTheme.textMuted,
+              size: 28,
+            ),
           ),
           const SizedBox(height: 16),
           const Text(
             'Belum Ada Transaksi',
-            style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 6),
           const Text(
@@ -615,14 +741,31 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           // Tipe Selector
           const Text(
             'JENIS TRANSAKSI',
-            style: TextStyle(color: AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1),
+            style: TextStyle(
+              color: AppTheme.textMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildTipeButton('Pemasukan', Icons.arrow_downward_rounded, AppTheme.accent)),
+              Expanded(
+                child: _buildTipeButton(
+                  'Pemasukan',
+                  Icons.arrow_downward_rounded,
+                  AppTheme.accent,
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _buildTipeButton('Pengeluaran', Icons.arrow_upward_rounded, AppTheme.danger)),
+              Expanded(
+                child: _buildTipeButton(
+                  'Pengeluaran',
+                  Icons.arrow_upward_rounded,
+                  AppTheme.danger,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 28),
@@ -634,7 +777,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               children: [
                 const Text(
                   'JUDUL TRANSAKSI',
-                  style: TextStyle(color: AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1),
+                  style: TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
@@ -642,7 +790,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   style: const TextStyle(color: AppTheme.textPrimary),
                   decoration: const InputDecoration(
                     hintText: 'Contoh: Gaji Bulan Ini',
-                    prefixIcon: Icon(Icons.title_rounded, color: AppTheme.textMuted, size: 20),
+                    prefixIcon: Icon(
+                      Icons.title_rounded,
+                      color: AppTheme.textMuted,
+                      size: 20,
+                    ),
                   ),
                   validator: (v) => v!.isEmpty ? 'Judul wajib diisi' : null,
                 ),
@@ -650,18 +802,34 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
                 const Text(
                   'NOMINAL',
-                  style: TextStyle(color: AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1),
+                  style: TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _nominalController,
                   keyboardType: TextInputType.number,
                   style: const TextStyle(color: AppTheme.textPrimary),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    _ThousandsSeparatorInputFormatter(),
+                  ],
                   decoration: const InputDecoration(
                     hintText: '0',
-                    prefixIcon: Icon(Icons.payments_outlined, color: AppTheme.textMuted, size: 20),
+                    prefixIcon: Icon(
+                      Icons.payments_outlined,
+                      color: AppTheme.textMuted,
+                      size: 20,
+                    ),
                     prefixText: 'Rp  ',
-                    prefixStyle: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                    prefixStyle: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                    ),
                   ),
                   validator: (v) => v!.isEmpty ? 'Nominal wajib diisi' : null,
                 ),
@@ -676,7 +844,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         final res = await TransaksiService.tambahTransaksi(
                           userId: _userId,
                           tipe: _tipeTerpilih,
-                          nominal: double.parse(_nominalController.text),
+                          nominal: _parseNominalInput(_nominalController.text),
                           judul: _judulController.text,
                           kategori: 'Umum',
                         );
@@ -686,13 +854,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                           await _muatData();
                           _tabController.animateTo(0);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Transaksi berhasil disimpan! ✓')),
+                            const SnackBar(
+                              content: Text('Transaksi berhasil disimpan! ✓'),
+                            ),
                           );
                         }
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _tipeTerpilih == 'Pemasukan' ? AppTheme.accent : AppTheme.danger,
+                      backgroundColor: _tipeTerpilih == 'Pemasukan'
+                          ? AppTheme.accent
+                          : AppTheme.danger,
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -725,7 +897,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.15) : AppTheme.surfaceElevated,
+          color: isSelected
+              ? color.withOpacity(0.15)
+              : AppTheme.surfaceElevated,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected ? color : AppTheme.cardBorder,
@@ -735,7 +909,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isSelected ? color : AppTheme.textMuted, size: 18),
+            Icon(
+              icon,
+              color: isSelected ? color : AppTheme.textMuted,
+              size: 18,
+            ),
             const SizedBox(width: 8),
             Text(
               tipe,
@@ -748,6 +926,27 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  final NumberFormat _formatter = NumberFormat('#,###', 'id');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digitsOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digitsOnly.isEmpty) {
+      return const TextEditingValue(text: '');
+    }
+
+    final formatted = _formatter.format(int.parse(digitsOnly));
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

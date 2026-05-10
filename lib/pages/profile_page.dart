@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/user.dart';
 import '../services/user_service.dart';
 import '../theme/app_theme.dart';
@@ -16,6 +15,21 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   User? _user;
   bool _isLoading = true;
+
+  static const List<String> _bulanIndonesia = [
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
+  ];
 
   @override
   void initState() {
@@ -36,16 +50,26 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  String _formatTanggalIndonesia(DateTime tanggal) {
+    final bulan = _bulanIndonesia[tanggal.month - 1];
+    final hari = tanggal.day.toString().padLeft(2, '0');
+    return '$hari $bulan ${tanggal.year}';
+  }
+
   void _logout() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Konfirmasi Logout'),
-        content: const Text('Anda akan keluar dari akun ini. Yakin ingin logout?'),
+        content: const Text(
+          'Anda akan keluar dari akun ini. Yakin ingin logout?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.textSecondary),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondary,
+            ),
             child: const Text('Batal'),
           ),
           TextButton(
@@ -57,7 +81,10 @@ class _ProfilePageState extends State<ProfilePage> {
               );
             },
             style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
-            child: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Logout',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -68,13 +95,19 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: AppTheme.accent, strokeWidth: 2.5),
+        child: CircularProgressIndicator(
+          color: AppTheme.accent,
+          strokeWidth: 2.5,
+        ),
       );
     }
 
     if (_user == null) {
       return const Center(
-        child: Text('Gagal memuat profil', style: TextStyle(color: AppTheme.textSecondary)),
+        child: Text(
+          'Gagal memuat profil',
+          style: TextStyle(color: AppTheme.textSecondary),
+        ),
       );
     }
 
@@ -143,7 +176,10 @@ class _ProfilePageState extends State<ProfilePage> {
             decoration: BoxDecoration(
               color: AppTheme.accent.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.accent.withOpacity(0.25), width: 1),
+              border: Border.all(
+                color: AppTheme.accent.withOpacity(0.25),
+                width: 1,
+              ),
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
@@ -152,7 +188,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 SizedBox(width: 5),
                 Text(
                   'Akun Terverifikasi',
-                  style: TextStyle(color: AppTheme.accent, fontSize: 12, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: AppTheme.accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -177,7 +217,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 _buildInfoTile(
                   icon: Icons.calendar_today_outlined,
                   label: 'Tanggal Bergabung',
-                  value: DateFormat('dd MMMM yyyy', 'id').format(_user!.tanggalDaftar),
+                  value: _formatTanggalIndonesia(_user!.tanggalDaftar),
                   showDivider: true,
                 ),
                 _buildInfoTile(
@@ -203,17 +243,26 @@ class _ProfilePageState extends State<ProfilePage> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.danger,
                 side: const BorderSide(color: AppTheme.danger, width: 1),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
 
           const SizedBox(height: 24),
           const Text(
-            'Keuanganku v1.0.0\nDibuat oleh Kelompok 2',
+            'v1.0.0\nDibuat oleh Kelompok 2',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppTheme.textMuted, fontSize: 12, height: 1.6),
+            style: TextStyle(
+              color: AppTheme.textMuted,
+              fontSize: 12,
+              height: 1.6,
+            ),
           ),
         ],
       ),
