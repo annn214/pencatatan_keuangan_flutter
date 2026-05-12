@@ -6,29 +6,43 @@ class DatabaseService {
   static const String connectionString =
       'mongodb+srv://muhdimas_db_user:qvHqfYNeLRTP16Oh@cluster0.e8xuege.mongodb.net/Keuangan_db?appName=Cluster0';
 
-  // Koneksi ke MongoDB
   static Future<void> connect() async {
     try {
+      if (_db != null && _db!.isConnected) return;
       _db = await Db.create(connectionString);
       await _db!.open();
       print('✅ Berhasil konek ke MongoDB!');
     } catch (e) {
-      print('❌ Gagal konek ke MongoDB: $e');
+      print('❌ Gagal konek: $e');
+      _db = null;
     }
   }
 
-  // Ambil collection users
-  static DbCollection get users => _db!.collection('users');
+  static bool get isConnected => _db != null && _db!.isConnected;
 
-  // Ambil collection transaksi
-  static DbCollection get transaksi => _db!.collection('transaksi');
+  static DbCollection get users {
+    if (_db == null || !_db!.isConnected) {
+      throw Exception('Database belum terkoneksi!');
+    }
+    return _db!.collection('users');
+  }
 
-  // Ambil collection kategori
-  static DbCollection get kategori => _db!.collection('kategori');
+  static DbCollection get transaksi {
+    if (_db == null || !_db!.isConnected) {
+      throw Exception('Database belum terkoneksi!');
+    }
+    return _db!.collection('transaksi');
+  }
 
-  // Tutup koneksi
+  static DbCollection get kategori {
+    if (_db == null || !_db!.isConnected) {
+      throw Exception('Database belum terkoneksi!');
+    }
+    return _db!.collection('kategori');
+  }
+
   static Future<void> close() async {
-    await _db!.close();
-    print('🔒 Koneksi MongoDB ditutup');
+    await _db?.close();
+    _db = null;
   }
 }
