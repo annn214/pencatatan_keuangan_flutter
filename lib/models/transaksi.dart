@@ -17,7 +17,7 @@ class Transaksi {
     required this.judul,
     required this.kategori,
     DateTime? tanggal,
-  }) : tanggal = tanggal ?? DateTime.now();
+  }) : tanggal = tanggal ?? DateTime.now().toLocal();
 
   factory Transaksi.fromMap(Map<String, dynamic> map) {
     return Transaksi(
@@ -27,7 +27,9 @@ class Transaksi {
       nominal: (map['nominal'] as num).toDouble(),
       judul: map['judul'] as String,
       kategori: map['kategori'] as String,
-      tanggal: map['tanggal'] as DateTime? ?? DateTime.now(),
+      tanggal: map['tanggal'] != null 
+          ? (map['tanggal'] as DateTime).toLocal()
+          : DateTime.now().toLocal(),
     );
   }
 
@@ -39,7 +41,7 @@ class Transaksi {
       'nominal': nominal,
       'judul': judul,
       'kategori': kategori,
-      'tanggal': tanggal,
+      'tanggal': tanggal.toUtc(),
     };
   }
 }
