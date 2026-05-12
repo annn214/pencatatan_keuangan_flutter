@@ -3,83 +3,80 @@ import 'database_service.dart';
 import '../models/user.dart';
 
 class UserService {
-  // REGISTER - Daftar user baru
+  // REGISTER
   static Future<Map<String, dynamic>> register({
     required String nama,
     required String email,
     required String password,
   }) async {
     try {
-      final normalizedEmail = email.trim().toLowerCase();
-
-      // Cek email sudah ada atau belum
-      final existing = await DatabaseService.users.findOne({
-        'email': normalizedEmail,
-      });
+      final col = await DatabaseService.getUsers();
+      final existing = await col.findOne({'email': email});
       if (existing != null) {
         return {'success': false, 'message': 'Email sudah terdaftar!'};
       }
-
-      final user = User(nama: nama, email: normalizedEmail, password: password);
-
-      await DatabaseService.users.insertOne(user.toMap());
+      final user = User(nama: nama, email: email, password: password);
+      await col.insertOne(user.toMap());
       return {'success': true, 'message': 'Registrasi berhasil!'};
     } catch (e) {
+      print('❌ Error register: $e');
       return {'success': false, 'message': 'Error: $e'};
     }
   }
 
-  // LOGIN - Masuk ke akun
+  // LOGIN
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
   }) async {
     try {
-      final normalizedEmail = email.trim().toLowerCase();
-
-      final data = await DatabaseService.users.findOne({
-        'email': normalizedEmail,
+      final col = await DatabaseService.getUsers();
+      final data = await col.findOne({
+        'email': email,
         'password': password,
       });
-
       if (data == null) {
         return {'success': false, 'message': 'Email atau password salah!'};
       }
-
       return {
         'success': true,
         'message': 'Login berhasil!',
         'data': User.fromMap(data),
       };
     } catch (e) {
+      print('❌ Error login: $e');
       return {'success': false, 'message': 'Error: $e'};
     }
   }
 
-  // GET USER - Ambil data user by ID
+  // GET USER BY ID
   static Future<User?> getUserById(String id) async {
     try {
-      final data = await DatabaseService.users.findOne(
+      final col = await DatabaseService.getUsers();
+      final data = await col.findOne(
         where.id(ObjectId.fromHexString(id)),
       );
       if (data == null) return null;
       return User.fromMap(data);
     } catch (e) {
-      print('Error: $e');
+      print('❌ Error getUserById: $e');
       return null;
     }
   }
 
-  // UPDATE - Edit profil user
+  // UPDATE USER
   static Future<Map<String, dynamic>> updateUser({
     required String id,
     String? nama,
     String? email,
   }) async {
     try {
-      await DatabaseService.users.updateOne(
+      final col = await DatabaseService.getUsers();
+      await col.updateOne(
         where.id(ObjectId.fromHexString(id)),
-        modify.set('nama', nama).set('email', email),
+        modify
+            .set('nama', nama)
+            .set('email', email),
       );
       return {'success': true, 'message': 'Profil berhasil diupdate!'};
     } catch (e) {
@@ -87,10 +84,11 @@ class UserService {
     }
   }
 
-  // DELETE - Hapus user
+  // DELETE USER
   static Future<Map<String, dynamic>> deleteUser(String id) async {
     try {
-      await DatabaseService.users.deleteOne(
+      final col = await DatabaseService.getUsers();
+      await col.deleteOne(
         where.id(ObjectId.fromHexString(id)),
       );
       return {'success': true, 'message': 'User berhasil dihapus!'};

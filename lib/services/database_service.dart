@@ -15,29 +15,31 @@ class DatabaseService {
     } catch (e) {
       print('❌ Gagal konek: $e');
       _db = null;
+      await Future.delayed(const Duration(seconds: 2));
+      await connect();
+    }
+  }
+
+  static Future<void> ensureConnected() async {
+    if (_db == null || !_db!.isConnected) {
+      await connect();
     }
   }
 
   static bool get isConnected => _db != null && _db!.isConnected;
 
-  static DbCollection get users {
-    if (_db == null || !_db!.isConnected) {
-      throw Exception('Database belum terkoneksi!');
-    }
+  static Future<DbCollection> getUsers() async {
+    await ensureConnected();
     return _db!.collection('users');
   }
 
-  static DbCollection get transaksi {
-    if (_db == null || !_db!.isConnected) {
-      throw Exception('Database belum terkoneksi!');
-    }
+  static Future<DbCollection> getTransaksi() async {
+    await ensureConnected();
     return _db!.collection('transaksi');
   }
 
-  static DbCollection get kategori {
-    if (_db == null || !_db!.isConnected) {
-      throw Exception('Database belum terkoneksi!');
-    }
+  static Future<DbCollection> getKategori() async {
+    await ensureConnected();
     return _db!.collection('kategori');
   }
 
