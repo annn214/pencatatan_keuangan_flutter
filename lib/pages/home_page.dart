@@ -88,11 +88,21 @@ class _HomePageState extends State<HomePage>
     return 'https://quickchart.io/chart?c=${Uri.encodeComponent(config)}&backgroundColor=transparent&width=200&height=200';
   }
 
+  // ✅ PERBAIKAN: warna benar (hitam di putih), data ringkas, ukuran lebih besar
   String getQrUrl(Transaksi t) {
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-    String data =
-        'TRANSAKSI KEUANGAN\nNama: ${_currentUser?.nama ?? 'User'}\nJudul: ${t.judul}\nNominal: ${fmt.format(t.nominal)}\nTipe: ${t.tipe}\nKategori: ${t.kategori}\nTanggal: ${dateFormat.format(t.tanggal)}\nID: ${t.id?.toHexString() ?? 'N/A'}';
-    return 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${Uri.encodeComponent(data)}&bgcolor=1A1D27&color=F0F2F8';
+    final data =
+        'Nama: ${_currentUser?.nama ?? 'User'} | '
+        'Judul: ${t.judul} | '
+        'Nominal: ${fmt.format(t.nominal)} | '
+        'Tipe: ${t.tipe} | '
+        'Tanggal: ${dateFormat.format(t.tanggal)} | '
+        'ID: ${t.id?.toHexString() ?? 'N/A'}';
+    return 'https://api.qrserver.com/v1/create-qr-code/?size=300x300'
+        '&data=${Uri.encodeComponent(data)}'
+        '&bgcolor=ffffff'   // latar putih
+        '&color=000000'     // modul hitam
+        '&margin=10';       // margin agar mudah di-scan
   }
 
   String _formatNominalInput(String value) {
@@ -308,11 +318,8 @@ class _HomePageState extends State<HomePage>
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
         children: [
-          // Saldo Card
           _buildSaldoCard(),
           const SizedBox(height: 20),
-
-          // Summary Cards
           Row(
             children: [
               Expanded(
@@ -337,14 +344,10 @@ class _HomePageState extends State<HomePage>
             ],
           ),
           const SizedBox(height: 24),
-
-          // Chart (if data exists)
           if (listTransaksi.isNotEmpty) ...[
             _buildChartSection(),
             const SizedBox(height: 24),
           ],
-
-          // Transaction List Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -363,7 +366,6 @@ class _HomePageState extends State<HomePage>
             ],
           ),
           const SizedBox(height: 14),
-
           listTransaksi.isEmpty
               ? _buildEmptyState()
               : Column(
@@ -561,7 +563,6 @@ class _HomePageState extends State<HomePage>
       ),
       child: Row(
         children: [
-          // Icon
           Container(
             width: 42,
             height: 42,
@@ -578,8 +579,6 @@ class _HomePageState extends State<HomePage>
             ),
           ),
           const SizedBox(width: 14),
-
-          // Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -619,8 +618,6 @@ class _HomePageState extends State<HomePage>
               ],
             ),
           ),
-
-          // Amount
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -636,16 +633,70 @@ class _HomePageState extends State<HomePage>
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // ✅ PERBAIKAN: Dialog QR dengan latar putih dan ukuran lebih besar
                   _actionIcon(Icons.qr_code_rounded, AppTheme.textMuted, () {
                     showDialog(
                       context: context,
-                      builder: (_) => AlertDialog(
+                      builder: (dialogContext) => AlertDialog(
                         backgroundColor: AppTheme.surface,
                         title: const Text('QR Transaksi'),
-                        content: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(getQrUrl(t)),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.all(12),
+                              child: Image.network(
+                                getQrUrl(t),
+                                width: 250,
+                                height: 250,
+                                fit: BoxFit.contain,
+                                loadingBuilder: (context, child, progress) {
+                                  if (progress == null) return child;
+                                  return const SizedBox(
+                                    width: 250,
+                                    height: 250,
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        color: AppTheme.accent,
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              t.judul,
+                              style: const TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              fmt.format(t.nominal),
+                              style: TextStyle(
+                                color: isIn ? AppTheme.accent : AppTheme.danger,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppTheme.textSecondary,
+                            ),
+                            child: const Text('Tutup'),
+                          ),
+                        ],
                       ),
                     );
                   }),
@@ -737,8 +788,6 @@ class _HomePageState extends State<HomePage>
             style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: 32),
-
-          // Tipe Selector
           const Text(
             'JENIS TRANSAKSI',
             style: TextStyle(
@@ -769,7 +818,6 @@ class _HomePageState extends State<HomePage>
             ],
           ),
           const SizedBox(height: 28),
-
           Form(
             key: _formKey,
             child: Column(
@@ -799,7 +847,6 @@ class _HomePageState extends State<HomePage>
                   validator: (v) => v!.isEmpty ? 'Judul wajib diisi' : null,
                 ),
                 const SizedBox(height: 20),
-
                 const Text(
                   'NOMINAL',
                   style: TextStyle(
@@ -834,7 +881,6 @@ class _HomePageState extends State<HomePage>
                   validator: (v) => v!.isEmpty ? 'Nominal wajib diisi' : null,
                 ),
                 const SizedBox(height: 36),
-
                 SizedBox(
                   width: double.infinity,
                   height: 54,
